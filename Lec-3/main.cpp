@@ -29,11 +29,11 @@ int main(){
         truthTable G_T(G);
         G_T.print();
         cout<<"F|=G: ";
-        (F|=G) ? cout<<"YES\n" : cout<<"NO\n";
+        (F.entails(G)) ? cout<<"YES\n" : cout<<"NO\n";
         cout<<"G|=F: ";
-        (G|=F) ? cout<<"YES\n" : cout<<"NO\n";
+        (G.entails(F)) ? cout<<"YES\n" : cout<<"NO\n";
         cout<<"F==G: ";
-        (F == G) ? cout<<"YES\n" : cout<<"NO\n";
+        (F.semanticEquivalent(G)) ? cout<<"YES\n" : cout<<"NO\n";
     }
     return 0;
 }
