@@ -175,9 +175,10 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                     vector<vector<string>> sub_proof = ND(new_premises, psi, valid);
                     if(valid){
                         // append sub_proof to proof then return;
-                        // not valid for now
-                        valid = false;
-                        return {};
+                        proof.push_back({phi, "Assumption"});
+                        proof.insert(proof.end(), sub_proof.begin() + n + 1, sub_proof.end());
+                        proof.push_back({conclusion.formula, "->i " + to_string(n+1) + ", " + to_string(proof.size())});
+                        return proof;
                     }
                     // else use elimination, else not possible
                     // not valid for now

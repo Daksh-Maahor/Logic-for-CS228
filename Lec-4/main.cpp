@@ -32,9 +32,30 @@ int main(){
         vector<vector<string>> proof = ND(premises, G, valid);
         if(valid){
             cout<<"Sequent is valid. Proof: \n";
-            int n = proof.size();
+            int n = proof.size(), ass_level = 0;
             for(int i=0; i<n; i++){
-                cout<<i+1<<". "<<proof[i][0]<<"   "<<proof[i][1]<<'\n';
+                if(proof[i][1] == "Assumption"){
+                    ass_level++;
+                    for(int k=0; k<20; k++){
+                        cout<<'-';
+                    }
+                    cout<<'\n';
+                }
+                else if(proof[i][1].substr(0, 3) == "->i"){
+                    ass_level--;
+                    for(int k=0; k<20; k++){
+                        cout<<'-';
+                    }
+                    cout<<'\n';
+                }
+                for(int j=0; j<ass_level; j++){
+                    cout<<'|';
+                }
+                cout<<i+1<<". "<<proof[i][0]<<"   "<<proof[i][1];
+                for(int j=0; j<ass_level; j++){
+                    cout<<'|';
+                }
+                cout<<'\n';
             }
         }
         else{
