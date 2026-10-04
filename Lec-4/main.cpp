@@ -29,7 +29,7 @@ int main(){
     }
     else{
         bool valid;
-        vector<vector<string>> proof = naive(premises, G, valid);
+        vector<vector<string>> proof = ND(premises, G, valid);
         if(valid){
             cout<<"Sequent is valid. Proof: \n";
             int n = proof.size();
