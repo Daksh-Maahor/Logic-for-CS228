@@ -5,6 +5,7 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
     // 2. check if conclusion is a literal or not (true then done, else continue)
     // 3. check if conclusion can be derived from premises with introduction
     // 4. check if elimination on one of the premises leads further
+    valid = false;
     vector<vector<string>> proof;
     unordered_set<string> variables;
     int n = premises.size();
@@ -22,7 +23,8 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
 
     if(check1){
         // conclusion is in premises, hence done by step 1
-        proof.push_back({premises[check1_i].formula, "Copy " + check1_i+1});
+        valid = true;
+        proof.push_back({premises[check1_i].formula, "Copy " + to_string(check1_i+1)});
         return proof;
     }
 
@@ -70,9 +72,11 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                 }
                 else if(c == '+'){
                     // (phi + psi)
-                    // + intro from premises (one of premises is either phi or psi)
+                    // + intro from premises (one of premises is either phi or psi or they are derivable by ND)
                     string phi = conclusion.formula.substr(1,i-1);
                     string psi = conclusion.formula.substr(i+1, f_sz-i-2);
+                    
+                    // early exist if premise
                     for(int i=0; i<n; i++){
                         if(premises[i].formula == phi){
                             valid = true;
@@ -85,6 +89,21 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                             return proof;
                         }
                     }
+
+                    vector<vector<string>> sub_proof1 = ND(premises, phi, valid);
+                    if(valid){
+                        proof.insert(proof.end(), sub_proof1.begin() + n, sub_proof1.end());
+                        proof.push_back({conclusion.formula, "+i1 " + to_string(proof.size())});
+                        return proof;
+                    }
+
+                    vector<vector<string>> sub_proof2 = ND(premises, psi, valid);
+                    if(valid){
+                        proof.insert(proof.end(), sub_proof2.begin() + n, sub_proof2.end());
+                        proof.push_back({conclusion.formula, "+i2 " + to_string(proof.size())});
+                        return proof;
+                    }
+
                     // else using elimination, else not possible (to do)
                     // not valid for now
                     valid = false;
@@ -95,20 +114,52 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                     // * intro from premises (both phi and psi in premises)
                     string phi = conclusion.formula.substr(1,i-1);
                     string psi = conclusion.formula.substr(i+1, f_sz-i-2);
-                    int phii = -1, psii = -1;
+                    
+                    // early finding phi and psi in premises
+                    int foundPhi = -1, foundPsi = -1;
                     for(int i=0; i<n; i++){
                         if(premises[i].formula == phi){
-                            phii = i+1;
+                            foundPhi = i+1;
                         }
                         if(premises[i].formula == psi){
-                            psii = i+1;
+                            foundPsi = i+1;
                         }
-                        if(phii != -1 && psii != -1){
+                        if(foundPhi != -1 && foundPsi != -1){
                             valid = true;
-                            proof.push_back({conclusion.formula, "*i " + to_string(phii) + ", " + to_string(psii)});
+                            proof.push_back({conclusion.formula, "*i " + to_string(foundPhi) + ", " + to_string(foundPsi)});
                             return proof;
                         }
                     }
+
+                    if(foundPhi != -1 && foundPsi == -1){
+                        vector<vector<string>> sub_proof = ND(premises, psi, valid);
+                        if(valid){
+                            proof.insert(proof.end(), sub_proof.begin() + n, sub_proof.end());
+                            proof.push_back({conclusion.formula, "*i " + to_string(foundPhi) + ", " + to_string(proof.size())});
+                            return proof;
+                        }
+                    }
+                    else if(foundPhi == -1 && foundPsi != -1){
+                        vector<vector<string>> sub_proof = ND(premises, phi, valid);
+                        if(valid){
+                            proof.insert(proof.end(), sub_proof.begin() + n, sub_proof.end());
+                            proof.push_back({conclusion.formula, "*i " + to_string(proof.size()) + ", " +  to_string(foundPsi)});
+                            return proof;
+                        }
+                    }
+                    else{
+                        vector<vector<string>> sub_proof1 = ND(premises, phi, valid);
+                        if(valid){
+                            vector<vector<string>> sub_proof2 = ND(premises, psi, valid);
+                            if(valid){
+                                proof.insert(proof.end(), sub_proof2.begin() + n, sub_proof2.end());
+                                proof.insert(proof.end(), sub_proof1.begin() + n, sub_proof1.end());
+                                proof.push_back({conclusion.formula, "*i " + to_string(proof.size() - sub_proof2.size()) + ", " + to_string(proof.size())});
+                                return proof;
+                            }
+                        }
+                    }
+                    
                     // else using elimination, else not possible
                     // not valid for now
                     valid = false;
