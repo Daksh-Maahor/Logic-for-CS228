@@ -34,14 +34,14 @@ int main(){
             cout<<"Sequent is valid. Proof: \n";
             int n = proof.size(), ass_level = 0;
             for(int i=0; i<n; i++){
-                if(proof[i][1] == "Assumption"){
+                if(proof[i][1].substr(0, 10) == "Assumption"){
                     ass_level++;
                     for(int k=0; k<20; k++){
                         cout<<'-';
                     }
                     cout<<'\n';
                 }
-                else if(proof[i][1].substr(0, 3) == "->i"){
+                if(proof[i][1].substr(0, 3) == "->i" || proof[i][1].substr(0,2) == "~i" || proof[i][1] == "Assumption2"){
                     ass_level--;
                     for(int k=0; k<20; k++){
                         cout<<'-';

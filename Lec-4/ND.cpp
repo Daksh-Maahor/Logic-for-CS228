@@ -1,5 +1,124 @@
 #include "ND.h"
 
+vector<vector<string>> elimination(vector<prop>& premises, prop conclusion, bool& valid){
+    // expand set of premises by elimination rules to help conclusion and return proof or not valid
+    // Idea: make unordered map of premises, then for each premise check what elimination helps
+    int n = premises.size();
+    unordered_map<string, int> premise_map;
+    vector<vector<string>> proof;
+    for(int i=0; i<n; i++){
+        premise_map[premises[i].formula] = i+1;
+        proof.push_back({premises[i].formula, "Premise"});
+    }
+    // added to check if elimination increased premises or not
+    bool added = false;
+    for(int j=0; j<n; j++){
+        // check premise[j]'s formula for elimination
+        string P_i = premises[j].formula;
+        // check if it is atomic or not
+        if(P_i[0] == '('){
+            int brackets = 0, f_sz = P_i.size();
+            for(int i=1; i<f_sz-1; i++){
+                char c = P_i[i];
+                if(c == '('){
+                    brackets++;
+                }
+                else if(c == ')'){
+                    brackets--;
+                }
+                else if(brackets == 0){
+                    if(c == '~'){
+                        if(i == 1){
+                            // (~phi), ~elimination (derived, need ~~elim instead)
+                            if(P_i[3] == '~'){
+                                //(~(~phi))
+                                string phi = P_i.substr(4, P_i.size() - 5);
+                                proof.push_back({phi, "~~e " + to_string(j+1)});
+                                premises.push_back(prop(phi));
+                                added = true;
+                            }
+                        }
+                        else{
+                            // cannot happen (since formula was valid)
+                        }
+                    }
+                    else if(c == '^'){
+                        // (phi ^ psi)
+                        // ^elim does not exist idk
+                    }
+                    else if(c == '+'){
+                        // (phi + psi)
+                        // +elim {idk}
+                    }
+                    else if(c == '*'){
+                        // (phi * psi)
+                        // * elim
+                        string phi = P_i.substr(1,i-1);
+                        string psi = P_i.substr(i+1, f_sz-i-2);
+                        if(premise_map.find(phi) == premise_map.end()){
+                            proof.push_back({phi, "*e1 " + to_string(j+1)});
+                            premises.push_back(prop(phi));
+                            added = true;
+                        }
+                        if(premise_map.find(psi) == premise_map.end()){
+                            proof.push_back({psi, "*e2 " + to_string(j+1)});
+                            premises.push_back(prop(psi));
+                            added = true;
+                        }
+                    }
+                    else if(c == '-' && i < f_sz-2 && P_i[i+1] == '>'){
+                        // (phi -> psi)
+                        // -> elim
+                        string phi = P_i.substr(1, i-1);
+                        string psi = P_i.substr(i+2, f_sz-i-3);
+                        // M.P. : check if phi is in premises then say psi
+                        if(premise_map.find(phi) != premise_map.end()){
+                            proof.push_back({psi, "MP " + to_string(premise_map[phi]) + ", " + to_string(j+1)});
+                            premises.push_back(prop(psi));
+                            added = true;
+                        }
+                        // M.T. : check if (~psi) is in premises then say (~phi)
+                        if(premise_map.find("(~" + psi + ")") != premise_map.end()){
+                            proof.push_back({"(~" + phi + ")", "MT " + to_string(premise_map["(~" + psi + ")"]) + ", " + to_string(j+1)});
+                            premises.push_back(prop("(~" + phi + ")"));
+                            added = true;
+                        }
+                    }
+                    else if(
+                        c == '<' && i < f_sz-3 &&
+                        P_i[i+1] == '-' && P_i[i+2] == '>'
+                    ){
+                        // (phi <-> psi) idk what to do
+                    }
+                }
+                else if(brackets < 0){
+                    // not well formed
+                }
+            }
+            if(brackets != 0){
+                // not well formed
+            }
+        }
+        else{
+            // if bot, then bot elim to get conclusion and return early (since done)
+            if(P_i == "BOT"){
+                valid = true;
+                proof.push_back({conclusion.formula, "BOTe " + to_string(j)});
+                premises.push_back(prop(conclusion.formula));
+                return proof;
+            }
+            // else, normal atomic prop, no elimination possible.
+        }
+    }
+    // No elimination implies not possible
+    if(!added){
+        valid = false;
+        return {};
+    }
+    valid = true;
+    return proof;
+}
+
 vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
     // 1. check if conclusion is in premises (true then done, else continue)
     // 2. check if conclusion is a literal or not (true then done, else continue)
@@ -50,14 +169,24 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                         vector<vector<string>> sub_proof = ND(new_premises, prop("BOT"), valid);
                         if(valid){
                             // add sub proof to proof then return it
-                            // not valid for now
-                            valid = false;
-                            return {};
+                            proof.push_back({phi, "Assumption"});
+                            proof.insert(proof.end(), sub_proof.begin() + n + 1, sub_proof.end());
+                            proof.push_back({conclusion.formula, "~i " + to_string(n+1) + "-" + to_string(proof.size())});
+                            return proof;
                         }
                         // use elimination
-                        // not valid for now
-                        valid = false;
-                        return {};
+                        proof = elimination(premises, conclusion, valid);
+                        if(!valid){
+                            return {};
+                        }
+                        // More derived premises and extended proof
+                        if(proof[proof.size()-1][0] == conclusion.formula){
+                            // done, early exit
+                            return proof;
+                        }
+                        vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+                        proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+                        return proof;
                     }
                     else{
                         // cannot happen (since formula was valid)
@@ -104,10 +233,18 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                         return proof;
                     }
 
-                    // else using elimination, else not possible (to do)
-                    // not valid for now
-                    valid = false;
-                    return {};
+                    // else using elimination, else not possible
+                    proof = elimination(premises, conclusion, valid);
+                    if(!valid){
+                        return {};
+                    }
+                    if(proof[proof.size()-1][0] == conclusion.formula){
+                        // done, early exit
+                        return proof;
+                    }
+                    vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+                    proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+                    return proof;
                 }
                 else if(c == '*'){
                     // (phi * psi)
@@ -161,9 +298,17 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                     }
                     
                     // else using elimination, else not possible
-                    // not valid for now
-                    valid = false;
-                    return {};
+                    proof = elimination(premises, conclusion, valid);
+                    if(!valid){
+                        return {};
+                    }
+                    if(proof[proof.size()-1][0] == conclusion.formula){
+                        // done, early exit
+                        return proof;
+                    }
+                    vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+                    proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+                    return proof;
                 }
                 else if(c == '-' && i < f_sz-2 && conclusion.formula[i+1] == '>'){
                     // (phi -> psi)
@@ -181,9 +326,17 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
                         return proof;
                     }
                     // else use elimination, else not possible
-                    // not valid for now
-                    valid = false;
-                    return {};
+                    proof = elimination(premises, conclusion, valid);
+                    if(!valid){
+                        return {};
+                    }
+                    if(proof[proof.size()-1][0] == conclusion.formula){
+                        // done, early exit
+                        return proof;
+                    }
+                    vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+                    proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+                    return proof;
                 }
                 else if(
                     c == '<' && i < f_sz-3 &&
@@ -206,7 +359,54 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
         }
     }
     else{
+        // if bot, then bot intro
+        if(conclusion.formula == "BOT"){
+            // search for F and (~F) in premises
+            unordered_map<string, int> premise_map;
+            for(int i=0; i<n; i++){
+                string not_F = "(~" + premises[i].formula + ")";
+                if(premise_map.find(not_F) != premise_map.end()){
+                    // found F and (~F), done
+                    valid = true;
+                    proof.push_back({"BOT", "BOTi " + to_string(i+1) + ", " + to_string(premise_map[not_F])});
+                    return proof;
+                }
+                if(premises[i].formula.substr(0, 2) == "(~"){
+                    string F = premises[i].formula.substr(2, premises[i].formula.size()-3);
+                    if(premise_map.find(F) != premise_map.end()){
+                        // found (~F) and F, done
+                        valid = true;
+                        proof.push_back({"BOT", "BOTi " + to_string(premise_map[F]) + ", " + to_string(i+1)});
+                        return proof;
+                    }
+                }
+                premise_map[premises[i].formula] = i+1;
+            }
+            // try elimination to get bot, else not possible
+            proof = elimination(premises, conclusion, valid);
+            if(!valid){
+                return {};
+            }
+            if(proof[proof.size()-1][0] == conclusion.formula){
+                // done, early exit
+                return proof;
+            }
+            vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+            proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+            return proof;
+        }
         // try elimination on premises to get conclusion, else not possible
+        proof = elimination(premises, conclusion, valid);
+        if(!valid){
+            return {};
+        }
+        if(proof[proof.size()-1][0] == conclusion.formula){
+            // done, early exit
+            return proof;
+        }
+        vector<vector<string>> final_proof = ND(premises, conclusion, valid);
+        proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+        return proof;
     }
     valid = false;
     return {};
