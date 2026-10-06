@@ -32,10 +32,12 @@ vector<vector<string>> elimination(vector<prop>& premises, prop conclusion, bool
                             // (~phi), ~elimination (derived, need ~~elim instead)
                             if(P_i[3] == '~'){
                                 //(~(~phi))
-                                string phi = P_i.substr(4, P_i.size() - 5);
-                                proof.push_back({phi, "~~e " + to_string(j+1)});
-                                premises.push_back(prop(phi));
-                                added = true;
+                                string phi = P_i.substr(4, P_i.size() - 6);
+                                if(premise_map.find(phi) == premise_map.end()){
+                                    proof.push_back({phi, "~~e " + to_string(j+1)});
+                                    premises.push_back(prop(phi));
+                                    added = true;
+                                }
                             }
                         }
                         else{
@@ -48,7 +50,42 @@ vector<vector<string>> elimination(vector<prop>& premises, prop conclusion, bool
                     }
                     else if(c == '+'){
                         // (phi + psi)
-                        // +elim {idk}
+                        // +elim {F+G, F->H, G->H, H}, let H be conclusion
+                        string phi = P_i.substr(1,i-1);
+                        string psi = P_i.substr(i+1, f_sz-i-2);
+
+                        // skip if phi or psi are already premises (obvious)
+                        if((premise_map.find(phi) != premise_map.end())||(premise_map.find(psi) != premise_map.end())){
+                            continue;
+                        }
+                        // try to prove conclusion from phi
+                        vector<prop> new_premises1 = premises;
+                        new_premises1.push_back(phi);
+                        vector<vector<string>> subProof1 = ND(new_premises1, conclusion, valid);
+                        if(!valid){
+                            continue;
+                        }
+                        
+                        // try to prove conclusion from psi
+                        vector<prop> new_premises2 = premises;
+                        new_premises2.push_back(psi);
+                        vector<vector<string>> subProof2 = ND(new_premises2, conclusion, valid);
+                        if(!valid){
+                            continue;
+                        }
+
+                        // It worked
+                        added = true;
+                        proof.push_back({phi, "Assumption1"});
+                        int x1 = proof.size();
+                        proof.insert(proof.end(), subProof1.begin() + proof.size(), subProof1.end());
+                        proof.push_back({psi, "Assumption2"});
+                        int x2 = proof.size();
+                        proof.insert(proof.end(), subProof2.begin() + x1, subProof2.end());
+                        proof.push_back({conclusion.formula, "+e " + to_string(j+1) + ", " + to_string(x1) + "-" + to_string(x2-1) + ", " + to_string(x2) + "-" + to_string(proof.size())});
+                        
+                        premises.push_back(conclusion);
+                        return proof;
                     }
                     else if(c == '*'){
                         // (phi * psi)
@@ -103,7 +140,7 @@ vector<vector<string>> elimination(vector<prop>& premises, prop conclusion, bool
             // if bot, then bot elim to get conclusion and return early (since done)
             if(P_i == "BOT"){
                 valid = true;
-                proof.push_back({conclusion.formula, "BOTe " + to_string(j)});
+                proof.push_back({conclusion.formula, "BOTe " + to_string(j+1)});
                 premises.push_back(prop(conclusion.formula));
                 return proof;
             }
@@ -405,7 +442,15 @@ vector<vector<string>> ND(vector<prop> premises, prop conclusion, bool& valid){
             return proof;
         }
         vector<vector<string>> final_proof = ND(premises, conclusion, valid);
-        proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+        if(valid){
+            proof.insert(proof.end(), final_proof.begin() + proof.size(), final_proof.end());
+            return proof;   
+        }
+    }
+    // try deriving bot, else cooked
+    proof = ND(premises, prop("BOT"), valid);
+    if(valid){
+        proof.push_back({conclusion.formula, "BOTe " + to_string(proof.size())});
         return proof;
     }
     valid = false;

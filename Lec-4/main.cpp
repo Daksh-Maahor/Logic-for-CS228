@@ -41,7 +41,7 @@ int main(){
                     }
                     cout<<'\n';
                 }
-                if(proof[i][1].substr(0, 3) == "->i" || proof[i][1].substr(0,2) == "~i" || proof[i][1] == "Assumption2"){
+                if(proof[i][1].substr(0, 3) == "->i" || proof[i][1].substr(0,2) == "~i" || proof[i][1] == "Assumption2" || proof[i][1].substr(0, 2) == "+e"){
                     ass_level--;
                     for(int k=0; k<20; k++){
                         cout<<'-';
